@@ -1,0 +1,124 @@
+version: '3'
+
+services:
+  zookeeper-1:
+    image: confluentinc/cp-zookeeper:latest
+    container_name: zookeeper-1
+    environment:
+      ZOOKEEPER_SERVER_ID: 1
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "22181:2181"
+
+  broker-1:
+    image: confluentinc/cp-kafka:latest
+    container_name: broker-1
+    ports:
+      - "19092:9092"
+      # - "9991:9991" # JMX Port
+    depends_on:
+      - zookeeper-1
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper-1:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker-1:9092,PLAINTEXT_HOST://localhost:19092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      # KAFKA_JMX_PORT: 9991 # JMX Configuration
+      KAFKA_OPTS: -javaagent:/usr/app/jmx_prometheus_javaagent-1.0.1.jar=7071:/usr/app/prom-jmx-agent-config.yml
+
+  broker-2:
+    image: confluentinc/cp-kafka:latest
+    container_name: broker-2
+    ports:
+      - "19093:9092"
+      # - "9992:9992" # JMX Port
+    depends_on:
+      - zookeeper-1
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper-1:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker-2:9093,PLAINTEXT_HOST://localhost:19093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      # KAFKA_JMX_PORT: 9992 # JMX Configuration
+      KAFKA_OPTS: -javaagent:/usr/app/jmx_prometheus_javaagent-1.0.1.jar=7071:/usr/app/prom-jmx-agent-config.yml
+      
+  broker-3:
+    image: confluentinc/cp-kafka:latest
+    container_name: broker-3
+    ports:
+      - "19094:9092"
+      # - "9993:9993" # JMX Port
+    depends_on:
+      - zookeeper-1
+    environment:
+      KAFKA_BROKER_ID: 3
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper-1:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker-3:9094,PLAINTEXT_HOST://localhost:19094
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      # KAFKA_JMX_PORT: 9993 # JMX Configuration
+      KAFKA_OPTS: -javaagent:/usr/app/jmx_prometheus_javaagent-1.0.1.jar=7071:/usr/app/prom-jmx-agent-config.yml
+
+
+  producer:
+    build:
+      context: .
+      dockerfile: Dockerfile.producer
+    container_name: kafka-producer
+    stdin_open: true
+    tty: true
+    depends_on:
+      - broker-1
+      - broker-2
+      - broker-3
+
+  consumer:
+    build:
+      context: .
+      dockerfile: Dockerfile.consumer
+    container_name: kafka-consumer
+    stdin_open: true
+    tty: true
+    depends_on:
+      - broker-1
+      - broker-2
+      - broker-3
+      
+  prometheus:
+   image: prom/prometheus
+   container_name: prometheus
+   ports:
+     - "9090:9090"
+   volumes:
+     - ./prometheus.yml:/etc/prometheus/prometheus.yml
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+      - 3000:3000
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ./grafana:/etc/grafana/provisioning/datasources
+
+  kafka-manager:
+    image: hlebalbau/kafka-manager:latest
+    container_name: kafka-manager
+    ports:
+      - "9000:9000"
+    environment:
+      ZK_HOSTS: zookeeper-1:2181
+      APPLICATION_SECRET: "randomsecret"
+    depends_on:
+      - broker-1
+      - broker-2
+      - broker-3
