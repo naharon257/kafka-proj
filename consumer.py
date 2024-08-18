@@ -13,12 +13,7 @@ def main():
     # Create a Kafka consumer instance
     consumer = Consumer(conf)
 
-    # Receive topic name from user input
-    topic = input("Enter the topic name to consume messages from: ")
-    if not topic:
-        print("Topic name cannot be empty.")
-        sys.exit(1)
-
+    topic = "second_topic"
     # Subscribe to the specified topic
     consumer.subscribe([topic])
 
