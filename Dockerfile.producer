@@ -1,0 +1,14 @@
+# Use a Python base image
+FROM python:3.9-slim
+
+# Set working directory
+WORKDIR /app
+
+# Copy the producer script into the container
+COPY producer.py .
+
+# Install Kafka Python client
+RUN pip install confluent-kafka
+
+# Run the producer script
+CMD ["python", "producer.py"]
